@@ -8,7 +8,7 @@
 
 
     Unless required by applicable law or agreed to in writing, this
-    software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
+    software is distributed on an "AS IS" BASIS, WITHOUT Wfwd_errANTIES OR
     CONDITIONS OF ANY KIND, either express or implied.
     
 */
@@ -21,22 +21,6 @@
 #include "esp_log.h"
 
 #include "hc-sr04_driver.h"
-
-
-
-/*#include <stdio.h>
-#include <unistd.h>
-#include <inttypes.h>
-#include <math.h>
-
-#include <rcl/rcl.h>
-#include <rcl/error_handling.h>
-#include <rclc/rclc.h>
-#include <rclc/executor.h>
-
-#include <geometry_msgs/msg/twist.h>
-
-#include <driver/gpio.h>*/
 #include <driver/ledc.h>
 
 #ifdef ESP_PLATFORM
@@ -45,8 +29,12 @@
 #endif
 
 
-#define HCSR_TRIG_GPIO_NUM GPIO_NUM_23
-#define HCSR_ECHO_GPIO_NUM GPIO_NUM_22
+#define FWD_HCSR_TRIG_GPIO_NUM GPIO_NUM_23
+#define FWD_HCSR_ECHO_GPIO_NUM GPIO_NUM_22
+#define LEFT_HCSR_TRIG_GPIO_NUM GPIO_NUM_32
+#define LEFT_HCSR_ECHO_GPIO_NUM GPIO_NUM_32
+#define RIGHT_HCSR_TRIG_GPIO_NUM GPIO_NUM_33
+#define RIGHT_HCSR_ECHO_GPIO_NUM GPIO_NUM_33
 #define LED_BUILTIN 2
 #define HCSR_HIGH 1
 #define HCSR_LOW 0
@@ -54,16 +42,12 @@
 
 static const char *TAG = "hc-sr04_driver";
 
-
-/*#define FRAME_TIME 100 // 1000 / FRAME_TIME = FPS
-#define SLEEP_TIME 10*/
-
 // PINS
 //#define LED_BUILTIN 33
 #define PIN_LEFT_FORWARD 12
 #define PIN_LEFT_BACKWARD 13
-#define PIN_RIGHT_FORWARD 15
-#define PIN_RIGHT_BACKWARD 14
+#define PIN_RIGHT_FORWARD 26
+#define PIN_RIGHT_BACKWARD 27
 
 // PWM Channels (Reserve channel 0 and 1 for camera)
 #define PWM_LEFT_FORWARD LEDC_CHANNEL_2
@@ -92,31 +76,40 @@ int hcsr_setup_pins()
 {
     ESP_LOGI(TAG,"Setting up GPIO Pins");
     //Config the Trig Pin
-    gpio_pad_select_gpio(HCSR_TRIG_GPIO_NUM);
-    gpio_set_direction(HCSR_TRIG_GPIO_NUM,GPIO_MODE_OUTPUT);
+    gpio_pad_select_gpio(FWD_HCSR_TRIG_GPIO_NUM);
+    gpio_set_direction(FWD_HCSR_TRIG_GPIO_NUM,GPIO_MODE_OUTPUT);
 
     //Config the Echo Pin
-    gpio_pad_select_gpio(HCSR_ECHO_GPIO_NUM);
-    gpio_set_direction(HCSR_ECHO_GPIO_NUM,GPIO_MODE_INPUT);
+    gpio_pad_select_gpio(FWD_HCSR_ECHO_GPIO_NUM);
+    gpio_set_direction(FWD_HCSR_ECHO_GPIO_NUM,GPIO_MODE_INPUT);
+
+        //Config the Trig Pin
+    gpio_pad_select_gpio(LEFT_HCSR_TRIG_GPIO_NUM);
+    gpio_set_direction(LEFT_HCSR_TRIG_GPIO_NUM,GPIO_MODE_OUTPUT);
+
+    //Config the Echo Pin
+    gpio_pad_select_gpio(LEFT_HCSR_ECHO_GPIO_NUM);
+    gpio_set_direction(LEFT_HCSR_ECHO_GPIO_NUM,GPIO_MODE_INPUT);
+
+        //Config the Trig Pin
+    gpio_pad_select_gpio(RIGHT_HCSR_TRIG_GPIO_NUM);
+    gpio_set_direction(RIGHT_HCSR_TRIG_GPIO_NUM,GPIO_MODE_OUTPUT);
+
+    //Config the Echo Pin
+    gpio_pad_select_gpio(RIGHT_HCSR_ECHO_GPIO_NUM);
+    gpio_set_direction(RIGHT_HCSR_ECHO_GPIO_NUM,GPIO_MODE_INPUT);
 
     gpio_reset_pin(LED_BUILTIN);
     gpio_set_direction(LED_BUILTIN, GPIO_MODE_INPUT_OUTPUT);
+
+    //gpio_set_direction(PIN_LEFT_FORWARD, GPIO_MODE_OUTPUT);
+    //gpio_set_direction(PIN_LEFT_BACKWARD, GPIO_MODE_OUTPUT);
 
     //ESP_LOGI(TAG,"GPIO Pins Setup Completed");
 
 
     //gpio_reset_pin(LED_BUILTIN);
     //gpio_set_direction(LED_BUILTIN, GPIO_MODE_INPUT_OUTPUT);
-
-    // Configure timer
-    ledc_timer_config_t ledc_timer = {
-        .duty_resolution = PWM_RESOLUTION,
-        .freq_hz = PWM_FREQUENCY,
-        .speed_mode = PWM_MODE,
-        .timer_num = PWM_TIMER,
-        .clk_cfg = LEDC_AUTO_CLK,
-    };
-    ledc_timer_config(&ledc_timer);
 
     // Configure 4 PWM channels and assign output pins
     ledc_channel_config_t ledc_channel[4] = {
@@ -157,90 +150,230 @@ int hcsr_setup_pins()
     for (int i = 0; i < 4; i++) {
         ledc_channel_config(&ledc_channel[i]);
     }
+    // Configure timer
+    ledc_timer_config_t ledc_timer = {
+        .duty_resolution = PWM_RESOLUTION,
+        .freq_hz = PWM_FREQUENCY,
+        .speed_mode = PWM_MODE,
+        .timer_num = PWM_TIMER,
+        .clk_cfg = LEDC_AUTO_CLK,
+    };
+    ledc_timer_config(&ledc_timer);
+
+    
 
     ESP_LOGI(TAG,"GPIO Pins Setup Completed NOW!");
 
     return 0;
 }
 
-esp_err_t hcsr_send_trig_signal()
+esp_err_t fwd_hcsr_send_trig_signal()
 {
     //ESP_LOGI(TAG,"Sending Trig Signal to HCSR04 Sensor");
-    esp_err_t err;
+    esp_err_t fwd_err;
     //Signal sent needs to be on HIGH for 10 uS
-    err = gpio_set_level(HCSR_TRIG_GPIO_NUM,HCSR_LOW);
-    if (err != ESP_OK)
+    fwd_err = gpio_set_level(FWD_HCSR_TRIG_GPIO_NUM,HCSR_LOW);
+    if (fwd_err != ESP_OK)
     {
         ESP_LOGE(TAG,"ERROR: Trig was unable to be sent");
-        return err;
+        return fwd_err;
     }
     vTaskDelay(pdMS_TO_TICKS(0.002));
 
-    err = gpio_set_level(HCSR_TRIG_GPIO_NUM,HCSR_HIGH);
-    if (err != ESP_OK)
+    fwd_err = gpio_set_level(FWD_HCSR_TRIG_GPIO_NUM,HCSR_HIGH);
+    if (fwd_err != ESP_OK)
     {
         ESP_LOGE(TAG,"ERROR: Trig was unable to be sent");
-        return err;
+        return fwd_err;
     }
     vTaskDelay(pdMS_TO_TICKS(0.01));
 
-    err = gpio_set_level(HCSR_TRIG_GPIO_NUM,HCSR_LOW);
-    if (err != ESP_OK)
+    fwd_err = gpio_set_level(FWD_HCSR_TRIG_GPIO_NUM,HCSR_LOW);
+    if (fwd_err != ESP_OK)
     {
         ESP_LOGE(TAG,"ERROR: Trig was unable to be sent");
-        return err;
+        return fwd_err;
     }
 
     //ESP_LOGI(TAG,"Trig Signal Sending Completed");
-    return err;
+    return fwd_err;
 
 }
 
-int hcsr_echo_pulse_read()
+esp_err_t left_hcsr_send_trig_signal()
+{
+    //ESP_LOGI(TAG,"Sending Trig Signal to HCSR04 Sensor");
+    esp_err_t left_err;
+    //Signal sent needs to be on HIGH for 10 uS
+    left_err = gpio_set_level(LEFT_HCSR_TRIG_GPIO_NUM,HCSR_LOW);
+    if (left_err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: Trig was unable to be sent");
+        return left_err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(0.002));
+
+    left_err = gpio_set_level(LEFT_HCSR_TRIG_GPIO_NUM,HCSR_HIGH);
+    if (left_err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: Trig was unable to be sent");
+        return left_err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(0.01));
+
+    left_err = gpio_set_level(LEFT_HCSR_TRIG_GPIO_NUM,HCSR_LOW);
+    if (left_err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: Trig was unable to be sent");
+        return left_err;
+    }
+
+    //ESP_LOGI(TAG,"Trig Signal Sending Completed");
+    return left_err;
+
+}
+
+esp_err_t right_hcsr_send_trig_signal()
+{
+    //ESP_LOGI(TAG,"Sending Trig Signal to HCSR04 Sensor");
+    esp_err_t right_err;
+    //Signal sent needs to be on HIGH for 10 uS
+    right_err = gpio_set_level(RIGHT_HCSR_TRIG_GPIO_NUM,HCSR_LOW);
+    if (right_err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: Trig was unable to be sent");
+        return right_err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(0.002));
+
+    right_err = gpio_set_level(RIGHT_HCSR_TRIG_GPIO_NUM,HCSR_HIGH);
+    if (right_err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: Trig was unable to be sent");
+        return right_err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(0.01));
+
+    right_err = gpio_set_level(RIGHT_HCSR_TRIG_GPIO_NUM,HCSR_LOW);
+    if (right_err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: Trig was unable to be sent");
+        return right_err;
+    }
+
+    //ESP_LOGI(TAG,"Trig Signal Sending Completed");
+    return right_err;
+
+}
+
+int fwd_hcsr_echo_pulse_read()
 {
     // ESP_LOGI(TAG,"Echo Reading");
     //Pulse Width Input - So we need to read how long is the input held up HIGH and return that value
     bool no_Signal = true;
-    int pulse_Width = 0; // in uS
+    int fwd_pulse_Width = 0; // in uS
     int counter = 0;
     while(no_Signal)
     {
-        if(gpio_get_level(HCSR_ECHO_GPIO_NUM) == HCSR_HIGH)
+        if(gpio_get_level(FWD_HCSR_ECHO_GPIO_NUM) == HCSR_HIGH)
         {   
             no_Signal = false;
-            while(gpio_get_level(HCSR_ECHO_GPIO_NUM) == HCSR_HIGH)
+            while(gpio_get_level(FWD_HCSR_ECHO_GPIO_NUM) == HCSR_HIGH)
             {
                 //Calculate the time in Microseconds
-                pulse_Width += 1;
+                fwd_pulse_Width += 1;
                 vTaskDelay(pdMS_TO_TICKS(0.001));
             }
         }
         else if(counter > 100)
         {
-            hcsr_send_trig_signal();
+            fwd_hcsr_send_trig_signal();
             counter = 0;
         }
         counter++;
         
     }
     // ESP_LOGI(TAG,"Echo Reading Completed");
-    return pulse_Width;
+    return fwd_pulse_Width;
 }
 
-double hcsr_get_distance_in()
+int left_hcsr_echo_pulse_read()
+{
+    // ESP_LOGI(TAG,"Echo Reading");
+    //Pulse Width Input - So we need to read how long is the input held up HIGH and return that value
+    bool no_Signal = true;
+    int left_pulse_Width = 0; // in uS
+    int counter = 0;
+    while(no_Signal)
+    {
+        if(gpio_get_level(LEFT_HCSR_ECHO_GPIO_NUM) == HCSR_HIGH)
+        {   
+            no_Signal = false;
+            while(gpio_get_level(LEFT_HCSR_ECHO_GPIO_NUM) == HCSR_HIGH)
+            {
+                //Calculate the time in Microseconds
+                left_pulse_Width += 1;
+                vTaskDelay(pdMS_TO_TICKS(0.001));
+            }
+        }
+        else if(counter > 100)
+        {
+            left_hcsr_send_trig_signal();
+            counter = 0;
+        }
+        counter++;
+        
+    }
+    // ESP_LOGI(TAG,"Echo Reading Completed");
+    return left_pulse_Width;
+}
+
+int right_hcsr_echo_pulse_read()
+{
+    // ESP_LOGI(TAG,"Echo Reading");
+    //Pulse Width Input - So we need to read how long is the input held up HIGH and return that value
+    bool no_Signal = true;
+    int right_pulse_Width = 0; // in uS
+    int counter = 0;
+    while(no_Signal)
+    {
+        if(gpio_get_level(RIGHT_HCSR_ECHO_GPIO_NUM) == HCSR_HIGH)
+        {   
+            no_Signal = false;
+            while(gpio_get_level(RIGHT_HCSR_ECHO_GPIO_NUM) == HCSR_HIGH)
+            {
+                //Calculate the time in Microseconds
+                right_pulse_Width += 1;
+                vTaskDelay(pdMS_TO_TICKS(0.001));
+            }
+        }
+        else if(counter > 100)
+        {
+            right_hcsr_send_trig_signal();
+            counter = 0;
+        }
+        counter++;
+        
+    }
+    // ESP_LOGI(TAG,"Echo Reading Completed");
+    return right_pulse_Width;
+}
+
+
+double fdw_hcsr_get_distance_in()
 {
     esp_err_t err;
     int pulse_readout = 0;
-    double distance = 0.0;
+    double fwd_distance = 0.0;
     
-    err = hcsr_send_trig_signal();
+    err = fwd_hcsr_send_trig_signal();
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG,"ERROR: within hcsr_send_trig_signal()");
         esp_restart();
     }
 
-    pulse_readout = hcsr_echo_pulse_read();
+    pulse_readout = fwd_hcsr_echo_pulse_read();
     if (err != ESP_OK)
     {
         ESP_LOGE(TAG,"ERROR: within hcsr_send_trig_signal()");
@@ -248,13 +381,65 @@ double hcsr_get_distance_in()
     }
 
     ESP_LOGI(TAG,"The Value of the Pulse Width is: %d",pulse_readout);
-    distance = ((double)pulse_readout / 148.0) * 10;
+    fwd_distance = ((double)pulse_readout / 148.0) * 10;
     //ESP_LOGI(TAG,"Distance in Inches: %f",distance);
-    return distance;
+    return fwd_distance;
+}
+
+double left_hcsr_get_distance_in()
+{
+    esp_err_t err;
+    int pulse_readout = 0;
+    double left_distance = 0.0;
+    
+    err = left_hcsr_send_trig_signal();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: within hcsr_send_trig_signal()");
+        esp_restart();
+    }
+
+    pulse_readout = left_hcsr_echo_pulse_read();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: within hcsr_send_trig_signal()");
+        esp_restart();
+    }
+
+    ESP_LOGI(TAG,"The Value of the Pulse Width is: %d",pulse_readout);
+    left_distance = ((double)pulse_readout / 148.0) * 10;
+    //ESP_LOGI(TAG,"Distance in Inches: %f",distance);
+    return left_distance;
+}
+
+double right_hcsr_get_distance_in()
+{
+    esp_err_t err;
+    int pulse_readout = 0;
+    double right_distance = 0.0;
+    
+    err = right_hcsr_send_trig_signal();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: within hcsr_send_trig_signal()");
+        esp_restart();
+    }
+
+    pulse_readout = right_hcsr_echo_pulse_read();
+    if (err != ESP_OK)
+    {
+        ESP_LOGE(TAG,"ERROR: within hcsr_send_trig_signal()");
+        esp_restart();
+    }
+
+    ESP_LOGI(TAG,"The Value of the Pulse Width is: %d",pulse_readout);
+    right_distance = ((double)pulse_readout / 148.0) * 10;
+    //ESP_LOGI(TAG,"Distance in Inches: %f",distance);
+    return right_distance;
 }
 
  
-double hcsr_caliberate_sensor()
+/*double hcsr_caliberate_sensor()
 {
     ESP_LOGI(TAG,"Caliberating Sensor");
 
@@ -270,4 +455,4 @@ double hcsr_caliberate_sensor()
     }
 
     return distance / 10.0;
-}
+}*/

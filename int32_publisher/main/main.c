@@ -127,7 +127,7 @@ int hcsr_task()
     //CALIB_DISTANCE = hcsr_caliberate_sensor();
     //ESP_LOGI(TAG,"going to get distance"); 
     
-    current_distance = (int)hcsr_get_distance_in();
+    current_distance = (int)fdw_hcsr_get_distance_in();
     //printf("distance is: %d", current_distance);
     ESP_LOGI(TAG,"current Distance: %f",current_distance);    
     
