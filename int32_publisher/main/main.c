@@ -94,11 +94,7 @@ std_msgs__msg__Int32 LeftDistanceMsg;
 std_msgs__msg__Int32 RightDistanceMsg;
 geometry_msgs__msg__Twist msg;
 
-// Function forward declarations
-/*void setupPins();
-void setupRos();
-void cmd_vel_callback(const void *msgin);*/
-//void timer_callback(rcl_timer_t *timer, int64_t last_call_time);
+
 float fmap(float val, float in_min, float in_max, float out_min, float out_max);
 
 
@@ -142,7 +138,7 @@ int hcsr_left()
     return left_distance;
 	}
 
-int hcsr_righr()
+int hcsr_right()
 {
     
     float right_distance = 0.0;
@@ -169,21 +165,21 @@ void subscription_callback(const void * msgin){
 	
 }
 
-/*void setupPins() {
-
-    // Led. Set it to GPIO_MODE_INPUT_OUTPUT, because we want to read back the state we set it to.
-    gpio_reset_pin(LED_BUILTIN);
-    gpio_set_direction(LED_BUILTIN, GPIO_MODE_INPUT_OUTPUT);
-    //gpio_set_level(LED_BUILTIN, !gpio_get_level(LED_BUILTIN));    
-}*/
 
 void timer_callback(rcl_timer_t *timer, int64_t last_call_time) {
 
     //gpio_set_level(LED_BUILTIN, !gpio_get_level(LED_BUILTIN));
 
 	if (timer != NULL) {
-		LedStateMsg.data = hcsr_fwd();
+
+    	LedStateMsg.data = gpio_get_level(LED_BUILTIN);
 		RCSOFTCHECK(rcl_publish(&led_state_publisher, &LedStateMsg, NULL));
+		FwdDistanceMsg.data = hcsr_fwd();
+		RCSOFTCHECK(rcl_publish(&fwd_distance_publisher, &FwdDistanceMsg, NULL));
+		//LeftDistanceMsg.data = hcsr_fwd();
+		//RCSOFTCHECK(rcl_publish(&left_distance_publisher, &LeftDistanceMsg, NULL));
+		//RightDistanceMsg.data = hcsr_fwd();
+		//RCSOFTCHECK(rcl_publish(&right_distance_publisher, &RightDistanceMsg, NULL));
 		printf("send ok\n");
 		//LedStateMsg.data++;
 	}
@@ -256,6 +252,13 @@ void micro_ros_task(void * arg)
 		&node,
 		ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
 		"led_state"));
+
+    // create led_state publisher
+	RCCHECK(rclc_publisher_init_default(
+		&fwd_distance_publisher,
+		&node,
+		ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
+		"fwd_distance"));
 	
 		// create subscriber 
 	RCCHECK(rclc_subscription_init_default(
@@ -298,6 +301,7 @@ void micro_ros_task(void * arg)
 
 	// free resources
 	RCCHECK(rcl_publisher_fini(&led_state_publisher, &node));
+    RCCHECK(rcl_publisher_fini(&fwd_distance_publisher, &node));
 	RCCHECK(rcl_subscription_fini(&led_input_subscriber, &node));
 	RCCHECK(rcl_subscription_fini(&subscriber, &node));
 	RCCHECK(rcl_node_fini(&node));
