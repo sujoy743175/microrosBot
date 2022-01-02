@@ -65,25 +65,6 @@
 #define FRAME_TIME 100 // 1000 / FRAME_TIME = FPS
 #define SLEEP_TIME 10
 
-// PINS
-/*#define LED_BUILTIN 33
-#define PIN_LEFT_FORWARD 12
-#define PIN_LEFT_BACKWARD 13
-#define PIN_RIGHT_FORWARD 15
-#define PIN_RIGHT_BACKWARD 14
-
-// PWM Channels (Reserve channel 0 and 1 for camera)
-#define PWM_LEFT_FORWARD LEDC_CHANNEL_2
-#define PWM_LEFT_BACKWARD LEDC_CHANNEL_3
-#define PWM_RIGHT_FORWARD LEDC_CHANNEL_4
-#define PWM_RIGHT_BACKWARD LEDC_CHANNEL_5
-
-// Other PWM settings
-#define PWM_FREQUENCY 50
-#define PWM_RESOLUTION LEDC_TIMER_12_BIT
-#define PWM_TIMER LEDC_TIMER_1
-#define PWM_MODE LEDC_HIGH_SPEED_MODE*/
-
 // These values are determined by experiment and are unique to every robot
 #define PWM_MOTOR_MIN 750    // The value where the motor starts moving
 #define PWM_MOTOR_MAX 4095   // Full speed (2^12 - 1)
@@ -96,7 +77,11 @@
 
 //rcl_publisher_t publisher;
 rcl_publisher_t led_state_publisher;
+rcl_publisher_t fwd_distance_publisher;
+rcl_publisher_t left_distance_publisher;
+rcl_publisher_t right_distance_publisher;
 rcl_subscription_t led_input_subscriber;
+rcl_subscription_t cmd_vel_subscriber;
 
 //rcl_publisher_t publisher;
 //std_msgs__msg__Int32 msg;
@@ -104,6 +89,9 @@ rcl_subscription_t led_input_subscriber;
 
 std_msgs__msg__Int32 LedStateMsg;
 std_msgs__msg__Int32 LedInputMsg;
+std_msgs__msg__Int32 FwdDistanceMsg;
+std_msgs__msg__Int32 LeftDistanceMsg;
+std_msgs__msg__Int32 RightDistanceMsg;
 geometry_msgs__msg__Twist msg;
 
 // Function forward declarations
@@ -114,10 +102,10 @@ void cmd_vel_callback(const void *msgin);*/
 float fmap(float val, float in_min, float in_max, float out_min, float out_max);
 
 
-int hcsr_task()
+int hcsr_fwd()
 {
     
-    float current_distance = 0.0;
+    float forward_distance = 0.0;
 
     //double CALIB_DISTANCE = 0.0;
 
@@ -127,24 +115,53 @@ int hcsr_task()
     //CALIB_DISTANCE = hcsr_caliberate_sensor();
     //ESP_LOGI(TAG,"going to get distance"); 
     
-    current_distance = (int)fdw_hcsr_get_distance_in();
+    forward_distance = (int)fdw_hcsr_get_distance_in();
     //printf("distance is: %d", current_distance);
-    ESP_LOGI(TAG,"current Distance: %f",current_distance);    
+    ESP_LOGI(TAG,"Forward Distance: %f",forward_distance);    
     
-    return current_distance;
+    return forward_distance;
 	}
 
-
-/*void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
+int hcsr_left()
 {
-	RCLC_UNUSED(last_call_time);
-	if (timer != NULL) {
-		LedStateMsg.data = hcsr_task();
-		RCSOFTCHECK(rcl_publish(&led_state_publisher, &LedStateMsg, NULL));
-		printf("send ok\n");
-		//LedStateMsg.data++;
+    
+    float left_distance = 0.0;
+
+    //double CALIB_DISTANCE = 0.0;
+
+    hcsr_setup_pins();
+
+    // Caliberate the sensor first
+    //CALIB_DISTANCE = hcsr_caliberate_sensor();
+    //ESP_LOGI(TAG,"going to get distance"); 
+    
+    left_distance = (int)left_hcsr_get_distance_in();
+    //printf("distance is: %d", current_distance);
+    ESP_LOGI(TAG,"Left Distance: %f",left_distance);    
+    
+    return left_distance;
 	}
-}*/
+
+int hcsr_righr()
+{
+    
+    float right_distance = 0.0;
+
+    //double CALIB_DISTANCE = 0.0;
+
+    hcsr_setup_pins();
+
+    // Caliberate the sensor first
+    //CALIB_DISTANCE = hcsr_caliberate_sensor();
+    //ESP_LOGI(TAG,"going to get distance"); 
+    
+    right_distance = (int)right_hcsr_get_distance_in();
+    //printf("distance is: %d", current_distance);
+    ESP_LOGI(TAG,"Right Distance: %f",right_distance);    
+    
+    return right_distance;
+	}
+
 
 void subscription_callback(const void * msgin){
 	const std_msgs__msg__Int32 * msg = (const std_msgs__msg__Int32 *)msgin;	
@@ -165,7 +182,7 @@ void timer_callback(rcl_timer_t *timer, int64_t last_call_time) {
     //gpio_set_level(LED_BUILTIN, !gpio_get_level(LED_BUILTIN));
 
 	if (timer != NULL) {
-		LedStateMsg.data = hcsr_task();
+		LedStateMsg.data = hcsr_fwd();
 		RCSOFTCHECK(rcl_publish(&led_state_publisher, &LedStateMsg, NULL));
 		printf("send ok\n");
 		//LedStateMsg.data++;
