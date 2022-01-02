@@ -176,8 +176,8 @@ void timer_callback(rcl_timer_t *timer, int64_t last_call_time) {
 		RCSOFTCHECK(rcl_publish(&led_state_publisher, &LedStateMsg, NULL));
 		FwdDistanceMsg.data = hcsr_fwd();
 		RCSOFTCHECK(rcl_publish(&fwd_distance_publisher, &FwdDistanceMsg, NULL));
-		//LeftDistanceMsg.data = hcsr_fwd();
-		//RCSOFTCHECK(rcl_publish(&left_distance_publisher, &LeftDistanceMsg, NULL));
+		LeftDistanceMsg.data = hcsr_left();
+		RCSOFTCHECK(rcl_publish(&left_distance_publisher, &LeftDistanceMsg, NULL));
 		//RightDistanceMsg.data = hcsr_fwd();
 		//RCSOFTCHECK(rcl_publish(&right_distance_publisher, &RightDistanceMsg, NULL));
 		printf("send ok\n");
