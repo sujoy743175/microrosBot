@@ -66,7 +66,7 @@
 #define SLEEP_TIME 10
 
 // These values are determined by experiment and are unique to every robot
-#define PWM_MOTOR_MIN 750    // The value where the motor starts moving
+#define PWM_MOTOR_MIN 2000   // The value where the motor starts moving
 #define PWM_MOTOR_MAX 4095   // Full speed (2^12 - 1)
 
 #ifdef ESP_PLATFORM
@@ -259,6 +259,12 @@ void micro_ros_task(void * arg)
 		&node,
 		ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
 		"fwd_distance"));
+
+      /*// create led_state publisher
+	RCCHECK(rclc_publisher_init_default(
+		&left_distance_publisher,
+		&node,
+		ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32), "left_distance"));*/
 	
 		// create subscriber 
 	RCCHECK(rclc_subscription_init_default(
@@ -302,6 +308,7 @@ void micro_ros_task(void * arg)
 	// free resources
 	RCCHECK(rcl_publisher_fini(&led_state_publisher, &node));
     RCCHECK(rcl_publisher_fini(&fwd_distance_publisher, &node));
+    RCCHECK(rcl_publisher_fini(&left_distance_publisher, &node));
 	RCCHECK(rcl_subscription_fini(&led_input_subscriber, &node));
 	RCCHECK(rcl_subscription_fini(&subscriber, &node));
 	RCCHECK(rcl_node_fini(&node));
